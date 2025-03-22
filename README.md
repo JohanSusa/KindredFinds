@@ -1,5 +1,4 @@
 # Product Spec Design: KindredFinds
-[TOC]
 
 ## Overview
 
@@ -52,13 +51,8 @@ KindredFinds is an iOS application designed to help people recover their lost be
 * Location Selection Screen
     *  Found Item Post Screen
 
-## User flows
-```sequence
-Title: KindredFinds
-participant user1
-User2->B: Lost Iteam
-B->C: Take a picture of the found item
-C->D: Add detailed comments
-D-->>E: Posting a Found Item
-E-->>user1: Browsing Found Items
-```
+
+
+![9o9mzx](https://github.com/user-attachments/assets/1b8f6aec-2c63-4151-b096-22000d2737d7)
+
+
