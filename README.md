@@ -52,6 +52,7 @@ KindredFinds is an iOS application designed to help people recover their lost be
     *  Found Item Post Screen
 
 
+![Recording 2025-03-22 220513 gif](https://github.com/user-attachments/assets/ec66d299-f627-449e-b4c2-a63dd4e9a0c5)
 
 ![9o9mzx](https://github.com/user-attachments/assets/1b8f6aec-2c63-4151-b096-22000d2737d7)
 
