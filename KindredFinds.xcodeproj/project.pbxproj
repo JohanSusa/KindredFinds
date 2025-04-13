@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C8687B992DAAFC3700BE5AEB /* ParseSwift in Frameworks */ = {isa = PBXBuildFile; productRef = C8687B982DAAFC3700BE5AEB /* ParseSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C8687B5D2DAAD75700BE5AEB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C8687B992DAAFC3700BE5AEB /* ParseSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = KindredFinds;
 			packageProductDependencies = (
+				C8687B982DAAFC3700BE5AEB /* ParseSwift */,
 			);
 			productName = KindredFinds;
 			productReference = C8687B4C2DAAD75400BE5AEB /* KindredFinds.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = C8687B432DAAD75400BE5AEB;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C8687B822DAAEF8E00BE5AEB /* XCRemoteSwiftPackageReference "Parse-Swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C8687B4D2DAAD75400BE5AEB /* Products */;
 			projectDirPath = "";
@@ -552,6 +561,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C8687B822DAAEF8E00BE5AEB /* XCRemoteSwiftPackageReference "Parse-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/parse-community/Parse-Swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.14.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C8687B982DAAFC3700BE5AEB /* ParseSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C8687B822DAAEF8E00BE5AEB /* XCRemoteSwiftPackageReference "Parse-Swift" */;
+			productName = ParseSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C8687B442DAAD75400BE5AEB /* Project object */;
 }
