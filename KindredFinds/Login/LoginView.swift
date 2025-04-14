@@ -52,8 +52,6 @@ struct LoginView: View {
                 
                 // Log In Button
                 Button(action: {
-                    // Handle your login action here.
-                    // For example, call your authentication service.
                     logInUser()
                 }) {
                     Text("Log In")
@@ -76,7 +74,11 @@ struct LoginView: View {
                 Spacer()
             }
             .navigationBarHidden(true)
-        }
+        }.alert("Error", isPresented: $showAlert, actions: {
+            Button("OK", role: .cancel) {}
+        }, message: {
+            Text(errorMessage)
+        })
     }
     
     private func logInUser() {
@@ -97,6 +99,7 @@ struct LoginView: View {
                 } catch {
                     // Handle logout error if needed.
                     print("Logout failed: \(error.localizedDescription)")
+    
                 }
             }
             do {
@@ -104,7 +107,11 @@ struct LoginView: View {
                 print("login successfull")
                 userLogedIn = true
             } catch{
+                errorMessage = error.localizedDescription
+                showError(message: errorMessage)
+                showAlert = true
                 print("login failed: \(error.localizedDescription)")
+
             }
            
             

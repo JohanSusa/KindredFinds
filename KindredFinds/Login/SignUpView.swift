@@ -38,6 +38,7 @@ struct SignUpView: View {
                 // Future sign up form elements go here.
                 TextField("email", text: $email)
                     .keyboardType(.emailAddress)
+                    .autocapitalization(.none)
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
@@ -69,7 +70,13 @@ struct SignUpView: View {
                 
                 Spacer()
             }
-        }
+        } // Display an error alert
+        .alert("Error", isPresented: $showAlert, actions: {
+            Button("OK", role: .cancel) {}
+        }, message: {
+            Text(errorMessage)
+        })
+
         
     }
     
@@ -101,8 +108,10 @@ struct SignUpView: View {
                 do {
                     try await User.logout()
                 } catch {
-                    // Handle logout error if needed.
-                    print("Logout failed: \(error.localizedDescription)")
+                    errorMessage = error.localizedDescription
+                    showAlert = true
+                    print("Logout failed: \(errorMessage)")
+                   
                 }
             }
                 
@@ -112,6 +121,7 @@ struct SignUpView: View {
                 userSingedUp = true
             } catch {
                 errorMessage = error.localizedDescription
+                showAlert = true
                 print(errorMessage)
             }
         }

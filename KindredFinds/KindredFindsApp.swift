@@ -17,7 +17,7 @@ struct KindredFindsApp: App {
     
     var body: some Scene {
         WindowGroup {
-            SignUpView()
+            LoginView()
         }
     }
 }
