@@ -203,6 +203,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				C8687B822DAAEF8E00BE5AEB /* XCRemoteSwiftPackageReference "Parse-Swift" */,
+				B5F2A5572DACDA780025EAC3 /* XCRemoteSwiftPackageReference "Alamofire" */,
+				B5F2A5582DACDC590025EAC3 /* XCRemoteSwiftPackageReference "AlamofireImage" */,
+				B5F2A55C2DACE8540025EAC3 /* XCRemoteSwiftPackageReference "Parse-SDK-iOS-OSX" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C8687B4D2DAAD75400BE5AEB /* Products */;
@@ -405,6 +408,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"KindredFinds/Preview Content\"";
+				DEVELOPMENT_TEAM = 899Y866KY5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -433,6 +437,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"KindredFinds/Preview Content\"";
+				DEVELOPMENT_TEAM = 899Y866KY5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -563,6 +568,30 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		B5F2A5572DACDA780025EAC3 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.10.2;
+			};
+		};
+		B5F2A5582DACDC590025EAC3 /* XCRemoteSwiftPackageReference "AlamofireImage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Alamofire/AlamofireImage.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.3.0;
+			};
+		};
+		B5F2A55C2DACE8540025EAC3 /* XCRemoteSwiftPackageReference "Parse-SDK-iOS-OSX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/parse-community/Parse-SDK-iOS-OSX";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.1.1;
+			};
+		};
 		C8687B822DAAEF8E00BE5AEB /* XCRemoteSwiftPackageReference "Parse-Swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/parse-community/Parse-Swift";

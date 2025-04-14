@@ -1,349 +1,243 @@
 import UIKit
 import ParseSwift
-import PhotosUI // For PHPickerViewController
-import CoreLocation // For CLLocationManager
+import PhotosUI // Use PHPicker for modern image selection
+import CoreLocation
 
-class FoundItemViewController: UIViewController, CLLocationManagerDelegate, PHPickerViewControllerDelegate, UITextViewDelegate {
+class PostViewController: UIViewController {
 
-    // --- Programmatic UI Elements ---
-    private let previewImageView: UIImageView = {
-        let imageView = UIImageView()
-        imageView.contentMode = .scaleAspectFit
-        imageView.clipsToBounds = true
-        imageView.backgroundColor = .secondarySystemBackground
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.isUserInteractionEnabled = true // Allow tapping to pick image
-        imageView.image = UIImage(systemName: "photo.on.rectangle.angled") // Initial placeholder
-        imageView.tintColor = .gray
-        return imageView
-    }()
-
-    private let descriptionTextView: UITextView = {
-        let textView = UITextView()
-        textView.font = .systemFont(ofSize: 16)
-        textView.layer.borderColor = UIColor.lightGray.cgColor
-        textView.layer.borderWidth = 1.0
-        textView.layer.cornerRadius = 5.0
-        textView.translatesAutoresizingMaskIntoConstraints = false
-        textView.text = "Enter item description here..." // Placeholder text
-        textView.textColor = .lightGray
-        return textView
-    }()
-
-     // Navigation Bar Buttons
-    private lazy var shareButton: UIBarButtonItem = {
-        return UIBarButtonItem(title: "Share", style: .done, target: self, action: #selector(onShareTapped))
-    }()
-
-    private lazy var cancelButton: UIBarButtonItem = {
-         return UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(onCancelTapped))
-     }()
-
-
-    // --- Properties ---
+    // MARK: - Properties
     private var pickedImage: UIImage? {
         didSet {
-            // Enable share button only if an image is picked AND description is not empty/placeholder
-            updateShareButtonState()
-             // Update image view
-            previewImageView.image = pickedImage ?? UIImage(systemName: "photo.on.rectangle.angled")
-            previewImageView.contentMode = (pickedImage != nil) ? .scaleAspectFit : .center // Adjust content mode
-            previewImageView.tintColor = (pickedImage != nil) ? .clear : .gray
+            previewImageView.image = pickedImage
+            navigationItem.rightBarButtonItem?.isEnabled = pickedImage != nil
         }
     }
-
-    private var hasEnteredDescription: Bool {
-        return descriptionTextView.textColor != .lightGray && !descriptionTextView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-
-    // Location Properties
-    private let locationManager = CLLocationManager()
+     private let locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
 
-    // --- Lifecycle ---
+    // MARK: - UI Elements
+    private lazy var previewImageView: UIImageView = {
+        let iv = UIImageView()
+        iv.contentMode = .scaleAspectFill
+        iv.clipsToBounds = true
+        iv.backgroundColor = .secondarySystemBackground
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleImageTap))
+        iv.addGestureRecognizer(tapGesture)
+        iv.isUserInteractionEnabled = true
+        iv.image = UIImage(systemName: "photo.on.rectangle.angled") // Placeholder
+        iv.tintColor = .secondaryLabel
+        return iv
+    }()
+
+    private lazy var captionTextView: UITextView = {
+        let tv = UITextView()
+        tv.font = .systemFont(ofSize: 16)
+        tv.translatesAutoresizingMaskIntoConstraints = false
+        tv.layer.borderWidth = 1.0
+        tv.layer.borderColor = UIColor.systemGray4.cgColor
+        tv.layer.cornerRadius = 5
+        // Add placeholder behavior
+        tv.text = "Write a caption..."
+        tv.textColor = .placeholderText
+        tv.delegate = self // Needed for placeholder logic
+        return tv
+    }()
+
+     private lazy var activityIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.color = .white // Show well on dark overlay
+        return indicator
+    }()
+
+    private lazy var loadingOverlayView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        view.isHidden = true
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(activityIndicator)
+        NSLayoutConstraint.activate([
+            activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+        return view
+    }()
+
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        setupNavigation()
+        setupNavigationBar()
         setupLocationServices()
         setupDismissKeyboardGesture()
-        addTapGestureToImageView()
-
-        // Set initial state
-        shareButton.isEnabled = false
-        descriptionTextView.delegate = self // Set delegate for placeholder handling
     }
 
-    // --- Setup ---
+    // MARK: - UI Setup
     private func setupUI() {
         view.backgroundColor = .systemBackground
         view.addSubview(previewImageView)
-        view.addSubview(descriptionTextView)
+        view.addSubview(captionTextView)
+        view.addSubview(loadingOverlayView) // Add overlay last
 
-        let padding: CGFloat = 16
+        let padding: CGFloat = 15.0
 
         NSLayoutConstraint.activate([
-            // Preview Image View
+            // Preview Image (e.g., square aspect ratio at the top)
             previewImageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: padding),
             previewImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
-            previewImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
-            previewImageView.heightAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.6), // Adjust height as needed
+            previewImageView.widthAnchor.constraint(equalToConstant: 100), // Smaller preview
+            previewImageView.heightAnchor.constraint(equalTo: previewImageView.widthAnchor), // Keep it square
 
-            // Description Text View
-            descriptionTextView.topAnchor.constraint(equalTo: previewImageView.bottomAnchor, constant: padding),
-            descriptionTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
-            descriptionTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
-            descriptionTextView.heightAnchor.constraint(equalToConstant: 150) // Adjust height as needed
+            // Caption Text View (next to image, filling remaining space)
+            captionTextView.topAnchor.constraint(equalTo: previewImageView.topAnchor),
+            captionTextView.leadingAnchor.constraint(equalTo: previewImageView.trailingAnchor, constant: padding),
+            captionTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
+             captionTextView.heightAnchor.constraint(equalTo: previewImageView.heightAnchor), // Same height as image
+
+            // Loading Overlay
+            loadingOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
+            loadingOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            loadingOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            loadingOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
 
-     private func setupNavigation() {
-        title = "Post Found Item"
-        navigationItem.rightBarButtonItem = shareButton
-        navigationItem.leftBarButtonItem = cancelButton
+     private func setupNavigationBar() {
+        navigationItem.title = "New Post"
+        // Cancel Button
+        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(handleCancel))
+        // Share Button
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Share", style: .done, target: self, action: #selector(handleShare))
+        navigationItem.rightBarButtonItem?.isEnabled = false // Disabled initially
     }
 
-     private func addTapGestureToImageView() {
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onImageTapped))
-        previewImageView.addGestureRecognizer(tapGesture)
-    }
-
-    // --- Location Services ---
+    // MARK: - Location Services (Keep Original Logic, Ensure Delegate methods have @objc)
     private func setupLocationServices() {
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters // Balance accuracy and power
+        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        requestLocationPermission()
+    }
 
-        let status = locationManager.authorizationStatus
-        if status == .notDetermined {
-            print("ℹ️ Requesting location permission...")
-            locationManager.requestWhenInUseAuthorization()
-        } else if status == .authorizedWhenInUse || status == .authorizedAlways {
-            print("✅ Location permission already granted. Requesting location update.")
-            locationManager.requestLocation() // Request a one-time location update
+    private func requestLocationPermission() {
+         DispatchQueue.global().async {
+            let status = self.locationManager.authorizationStatus
+
+            DispatchQueue.main.async {
+                switch status {
+                case .notDetermined:
+                     print(" N Requesting location permission...")
+                    self.locationManager.requestWhenInUseAuthorization()
+                case .authorizedWhenInUse, .authorizedAlways:
+                     print(" N Location permission granted. Requesting location update.")
+                     self.locationManager.requestLocation()
+                case .denied, .restricted:
+                    print(" N Location permission denied or restricted.")
+                @unknown default:
+                    fatalError("Unhandled CLLocationAuthorizationStatus")
+                }
+            }
+        }
+    }
+
+
+    // MARK: - Actions
+    @objc private func handleImageTap() {
+         print(" N Image view tapped, presenting picker.")
+        presentImagePicker()
+    }
+
+    @objc private func handleCancel() {
+        dismiss(animated: true, completion: nil)
+    }
+
+    @objc private func handleShare() {
+        dismissKeyboard()
+        print(" N Share button tapped.")
+
+        guard let image = pickedImage else {
+            showAlert(title: "Missing Image", description: "Please select an image to share.")
+            return
+        }
+
+         let captionText = (captionTextView.text == "Write a caption..." || captionTextView.text.isEmpty) ? nil : captionTextView.text
+
+        setLoading(true)
+
+        //  Prepare Image Data
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+             print("❌ Could not get JPEG data from image.")
+            showAlert(description: "Could not process image.")
+            setLoading(false)
+            return
+        }
+
+         print(" N Image data prepared (\(imageData.count) bytes).")
+
+        //  Create ParseFile
+        let fileName = "post_\(UUID().uuidString).jpg"
+        let imageFile = ParseFile(name: fileName, data: imageData)
+
+         print(" N ParseFile created: \(fileName)")
+
+
+        //  Create Post Object
+        var post = Post()
+        post.caption = captionText
+        post.user = User.current
+        post.imageFile = imageFile
+
+        //  Add Location (if available and permissions granted)
+        if let location = self.currentLocation {
+            do {
+                post.location = try ParseGeoPoint(location: location)
+                 print("✅ Attaching location to post: \(post.location!)")
+            } catch {
+                 print(" N Could not create ParseGeoPoint: \(error)")
+            }
         } else {
-            print("⚠️ Location permission denied or restricted.")
-            // Optionally inform user why location is useful
+             print(" N No location data available or permission denied.")
+        }
+
+        // Save the Post
+        post.save { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                 print(" N Post save attempt finished.")
+                 self.setLoading(false) // Hide loading indicator
+
+                switch result {
+                case .success(let savedPost):
+                     print("✅ Post saved successfully! ObjectId: \(savedPost.objectId ?? "N/A")")
+                    // Dismiss the PostViewController after successful save
+                     self.dismiss(animated: true, completion: nil)
+                    // Optional: Post a notification to refresh the feed if needed
+                    // NotificationCenter.default.post(name: .didCreateNewPost, object: nil)
+                case .failure(let error):
+                    print("❌ Failed to save post: \(error)")
+                    self.showAlert(title: "Upload Failed", description: "Could not save post. \(error.localizedDescription)")
+                }
+            }
         }
     }
 
-    // MARK: CLLocationManagerDelegate
-    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        print("ℹ️ Location authorization status changed to: \(status.rawValue)")
-        if status == .authorizedWhenInUse || status == .authorizedAlways {
-            print("✅ Permission granted/changed. Requesting location.")
-            locationManager.requestLocation()
-        } else if status == .denied || status == .restricted {
-            print("⚠️ User denied or restricted location access.")
-            currentLocation = nil // Clear location if permission revoked
-            // Optionally show an alert explaining the impact
-        }
-    }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        if let location = locations.first {
-            print("📍 Location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
-            currentLocation = location
-            // No need to stop updates for requestLocation(), it stops automatically.
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Handle specific errors (like kCLErrorDenied, kCLErrorLocationUnknown) if needed
-        print("❌ Location manager failed with error: \(error.localizedDescription)")
-        currentLocation = nil // Clear location on failure
-        // Ignore location unknown errors initially as it might resolve
-        if (error as? CLError)?.code != .locationUnknown {
-             // Show alert for significant errors like permission denial
-             showAlert(description: "Could not get location: \(error.localizedDescription)")
-        }
-    }
-
-    // --- Image Picking ---
-    @objc private func onImageTapped() {
-         print("Image view tapped - showing picker")
-         presentImagePicker()
-     }
-
-     private func presentImagePicker() {
-        var config = PHPickerConfiguration()
-        config.filter = .images // Only allow images
-        config.preferredAssetRepresentationMode = .current // Use most appropriate representation
-        config.selectionLimit = 1 // Only one image
+    // MARK: - Image Picking (PHPicker)
+    private func presentImagePicker() {
+        var config = PHPickerConfiguration(photoLibrary: .shared())
+        config.filter = .images // images
+        config.selectionLimit = 1
+        config.preferredAssetRepresentationMode = .current
         let picker = PHPickerViewController(configuration: config)
         picker.delegate = self
         present(picker, animated: true)
     }
 
-    // MARK: PHPickerViewControllerDelegate
-    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-        picker.dismiss(animated: true)
-
-        guard let provider = results.first?.itemProvider,
-              provider.canLoadObject(ofClass: UIImage.self) else {
-             print("No image provider found or cannot load UIImage.")
-             return
-        }
-
-        provider.loadObject(ofClass: UIImage.self) { [weak self] object, error in
-             guard let self = self else { return }
-
-            DispatchQueue.main.async { // Perform UI updates on main thread
-                if let error = error {
-                    print("❌ Error loading image from picker: \(error.localizedDescription)")
-                    self.showAlert(description: error.localizedDescription)
-                    return
-                }
-
-                guard let image = object as? UIImage else {
-                     print("❌ Could not cast loaded object to UIImage.")
-                    self.showAlert(description: "Could not load image.")
-                    return
-                }
-
-                print("🖼️ Image selected.")
-                self.pickedImage = image // This triggers the didSet and updates UI/button state
-                 // Request location update again after image selection if permitted
-                 if self.locationManager.authorizationStatus == .authorizedWhenInUse || self.locationManager.authorizationStatus == .authorizedAlways {
-                    self.locationManager.requestLocation()
-                }
-            }
-        }
-    }
-
-    // --- Sharing ---
-    @objc private func onShareTapped() {
-        print("Share button tapped")
-        view.endEditing(true) // Dismiss keyboard
-
-         // --- Validation ---
-        guard let image = pickedImage else {
-            showAlert(description: "Please select an image for the item.")
-            return
-        }
-         guard hasEnteredDescription, let description = descriptionTextView.text else {
-             showAlert(description: "Please enter a description for the item.")
-            return
-         }
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-             showAlert(description: "Could not process image data.")
-             return
-         }
-         guard let currentUser = User.current else {
-            showAlert(title: "Error", description: "You must be logged in to share.")
-            // Potentially trigger logout/login flow here
-            return
-         }
-
-        // --- Disable UI during save ---
-        setLoadingState(true)
-
-
-        // --- Create Parse Objects ---
-        let imageFile = ParseFile(name: "item_image.jpg", data: imageData) // Consider more unique names
-
-        var newItem = FoundItem()
-        newItem.imageFile = imageFile
-        newItem.descriptionText = description
-        newItem.user = currentUser
-
-        if let location = currentLocation {
-            do {
-                newItem.location = try ParseGeoPoint(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
-                 print("✅ Attaching location to item: \(newItem.location!)")
-            } catch {
-                 print("⚠️ Could not create ParseGeoPoint: \(error)")
-                 // Decide if saving without location is acceptable or show error
-            }
-        } else {
-            print("⚠️ No location data available to attach.")
-             // Decide if saving without location is acceptable
-        }
-
-        // --- Save to Parse ---
-         print("Attempting to save item...")
-        newItem.save { [weak self] result in
-             guard let self = self else { return }
-            // Perform UI updates on main thread
-            DispatchQueue.main.async {
-                 print("Save attempt finished.")
-                 // Re-enable UI
-                 self.setLoadingState(false)
-
-                switch result {
-                case .success(let savedItem):
-                     print("✅ Item Saved! \(savedItem.objectId ?? "N/A")")
-                    // Dismiss the view controller after successful save
-                     self.dismiss(animated: true, completion: nil)
-                     // Optional: Post a notification if the list view needs to refresh immediately
-                     // NotificationCenter.default.post(name: Notification.Name("newItemPosted"), object: nil)
-
-                case .failure(let error):
-                    self.showAlert(description: "Failed to save item: \(error.localizedDescription)")
-                    print("❌ Failed to save item: \(error)")
-                }
-            }
-        }
-    }
-
-     @objc private func onCancelTapped() {
-         print("Cancel button tapped")
-         // Add confirmation if user has entered data
-         if pickedImage != nil || hasEnteredDescription {
-             let alert = UIAlertController(title: "Discard Item?", message: "Are you sure you want to discard this found item post?", preferredStyle: .alert)
-             alert.addAction(UIAlertAction(title: "Discard", style: .destructive, handler: { _ in
-                 self.dismiss(animated: true, completion: nil)
-             }))
-             alert.addAction(UIAlertAction(title: "Keep Editing", style: .cancel, handler: nil))
-             present(alert, animated: true)
-         } else {
-             dismiss(animated: true, completion: nil) // Dismiss directly if nothing entered
-         }
-     }
-
-
-     private func setLoadingState(_ isLoading: Bool) {
-         shareButton.isEnabled = !isLoading && pickedImage != nil && hasEnteredDescription
-         cancelButton.isEnabled = !isLoading
-         // Optionally show an activity indicator
-         if isLoading {
-             let activityIndicator = UIActivityIndicatorView(style: .medium)
-             let barButton = UIBarButtonItem(customView: activityIndicator)
-             navigationItem.rightBarButtonItem = barButton
-             activityIndicator.startAnimating()
-         } else {
-             navigationItem.rightBarButtonItem = shareButton // Restore original button
-         }
-         view.isUserInteractionEnabled = !isLoading // Prevent interaction during save
-     }
-
-
-     private func updateShareButtonState() {
-        shareButton.isEnabled = pickedImage != nil && hasEnteredDescription
-    }
-
-    // --- Alerts ---
-    private func showAlert(title: String = "Oops...", description: String?) {
-        // Ensure alert is shown on the main thread
-        DispatchQueue.main.async {
-            let alertController = UIAlertController(title: title, message: "\(description ?? "Please try again...")", preferredStyle: .alert)
-            let action = UIAlertAction(title: "OK", style: .default)
-            alertController.addAction(action)
-            // Make sure the view controller can present the alert
-            if self.isViewLoaded && self.view.window != nil {
-                 self.present(alertController, animated: true)
-            } else {
-                print("⚠️ Alert cannot be presented: View not in window hierarchy.")
-                // Handle cases where the view might be dismissing
-            }
-        }
-    }
-
-
-    // --- Keyboard Handling ---
+     // MARK: - Helpers
      private func setupDismissKeyboardGesture() {
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
-        tapGesture.cancelsTouchesInView = false // Allow taps on controls like image view
+         tapGesture.cancelsTouchesInView = false
         view.addGestureRecognizer(tapGesture)
     }
 
@@ -351,24 +245,127 @@ class FoundItemViewController: UIViewController, CLLocationManagerDelegate, PHPi
         view.endEditing(true)
     }
 
-     // --- TextView Delegate (for Placeholder) ---
+    private func setLoading(_ isLoading: Bool) {
+        captionTextView.isEditable = !isLoading
+        navigationItem.leftBarButtonItem?.isEnabled = !isLoading
+        navigationItem.rightBarButtonItem?.isEnabled = !isLoading && (pickedImage != nil) // Share button
+
+         loadingOverlayView.isHidden = !isLoading
+        if isLoading {
+            activityIndicator.startAnimating()
+        } else {
+            activityIndicator.stopAnimating()
+        }
+    }
+
+    private func showAlert(title: String = "Error", description: String?) {
+        let alertController = UIAlertController(title: title, message: description ?? "An unknown error occurred.", preferredStyle: .alert)
+        let okAction = UIAlertAction(title: "OK", style: .default)
+        alertController.addAction(okAction)
+        present(alertController, animated: true)
+    }
+}
+
+// MARK: - PHPickerViewControllerDelegate
+extension PostViewController: PHPickerViewControllerDelegate {
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+
+        guard let provider = results.first?.itemProvider else { return }
+
+        if provider.canLoadObject(ofClass: UIImage.self) {
+            provider.loadObject(ofClass: UIImage.self) { [weak self] image, error in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    if let error = error {
+                         print("❌ Error loading image from picker: \(error)")
+                        self.showAlert(description: "Could not load selected image.")
+                        return
+                    }
+                    guard let image = image as? UIImage else {
+                        print("❌ Could not cast loaded object to UIImage.")
+                        self.showAlert(description: "Selected item was not a valid image.")
+                        return
+                    }
+                     print(" N Image successfully loaded from picker.")
+                    self.pickedImage = image
+                }
+            }
+        } else {
+             print(" N Selected item provider cannot load UIImage.")
+             showAlert(description: "Cannot load this type of item as an image.")
+        }
+    }
+}
+
+
+// MARK: - CLLocationManagerDelegate
+extension PostViewController: CLLocationManagerDelegate {
+
+     // Handle authorization changes
+     @objc func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        print(" N Location authorization status changed to: \(status.rawValue)")
+        if status == .authorizedWhenInUse || status == .authorizedAlways {
+             print(" N Permission granted. Requesting location.")
+             manager.requestLocation() // Request a one-time update
+        } else if status == .denied || status == .restricted {
+             print(" N User denied or restricted location access. Clearing current location.")
+            self.currentLocation = nil
+        }
+    }
+
+     // Handle successful location updates
+    @objc func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let location = locations.first {
+            print(" N Location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+            self.currentLocation = location
+          
+        } else {
+             print(" N Location update received but no locations array.")
+        }
+    }
+
+    // Handle location errors
+    @objc func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+         print(" N Location manager failed with error: \(error)")
+      
+        if let clError = error as? CLError {
+            if clError.code == .denied {
+                print(" N Location access specifically denied by user.")
+            } else if clError.code == .locationUnknown {
+                 print(" N Could not determine location currently.")
+            } else {
+                 print(" N Unhandled CL Location Error: \(clError.code)")
+            }
+        } else {
+            print(" N Non-CL Location Error: \(error.localizedDescription)")
+        }
+
+        self.currentLocation = nil
+    }
+}
+
+// MARK: - UITextViewDelegate (for Placeholder)
+extension PostViewController: UITextViewDelegate {
     func textViewDidBeginEditing(_ textView: UITextView) {
-        if textView.textColor == .lightGray {
+        if textView.textColor == .placeholderText {
             textView.text = nil
-            textView.textColor = .label // Use standard text color
+            textView.textColor = .label
         }
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
         if textView.text.isEmpty {
-            textView.text = "Enter item description here..."
-            textView.textColor = .lightGray
+            textView.text = "Write a caption..."
+            textView.textColor = .placeholderText
         }
-         updateShareButtonState() // Check state when editing ends
     }
 
-     func textViewDidChange(_ textView: UITextView) {
-         updateShareButtonState() // Check state on every change
-     }
-
+     // Optional: Limit caption length
+    // func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+    //     let currentText = textView.text ?? ""
+    //     guard let stringRange = Range(range, in: currentText) else { return false }
+    //     let updatedText = currentText.replacingCharacters(in: stringRange, with: text)
+    //     return updatedText.count <= 200 // Example limit
+    // }
 }

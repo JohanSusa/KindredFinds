@@ -1,243 +1,218 @@
 import UIKit
+import Alamofire // For image loading (can be replaced with URLSession if preferred)
+import AlamofireImage
+import CoreLocation
 import ParseSwift
-import CoreLocation // For FoundItemCell geocoding context
 
-class ItemListViewController: UIViewController {
+class PostCell: UITableViewCell {
 
-    // --- Programmatic UI Elements ---
-    private let tableView: UITableView = {
-        let tableView = UITableView()
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        // Register the programmatic cell class
-        tableView.register(FoundItemCell.self, forCellReuseIdentifier: FoundItemCell.identifier)
-        return tableView
+    // MARK: - Properties
+    static let identifier = "PostCell" // Reusable identifier
+    private var imageDataRequest: DataRequest?
+    private let geocoder = CLGeocoder()
+
+    // MARK: - UI Elements
+    private lazy var usernameLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 14, weight: .semibold)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
     }()
 
-    private let refreshControl = UIRefreshControl()
+    private lazy var locationLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 12)
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
 
-    // --- Data ---
-    private var items = [FoundItem]() {
-        didSet {
-            // Reload table view data any time the items variable gets updated.
-            tableView.reloadData()
-        }
-    }
+    private lazy var postImageView: UIImageView = {
+        let iv = UIImageView()
+        iv.contentMode = .scaleAspectFill // Fill the space, crop if needed
+        iv.clipsToBounds = true
+        iv.backgroundColor = .secondarySystemBackground // Placeholder color
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
 
-    // Infinite Scroll properties
-    private var isLoadingMore = false
-    private let queryLimit = 10 // Number of items to fetch per batch
+     private lazy var captionLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 14)
+        label.numberOfLines = 0 // Allow multiple lines
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
 
-    // --- Lifecycle ---
-    override func viewDidLoad() {
-        super.viewDidLoad()
+     private lazy var dateLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 10)
+        label.textColor = .tertiaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
+    // Stack views for easier layout
+    private lazy var headerStackView: UIStackView = {
+       let sv = UIStackView(arrangedSubviews: [usernameLabel, locationLabel])
+        sv.axis = .vertical
+        sv.alignment = .leading
+        sv.spacing = 2
+        sv.translatesAutoresizingMaskIntoConstraints = false
+        return sv
+    }()
+
+     private lazy var footerStackView: UIStackView = {
+       let sv = UIStackView(arrangedSubviews: [captionLabel, dateLabel])
+        sv.axis = .vertical
+        sv.alignment = .leading
+        sv.spacing = 4
+        sv.translatesAutoresizingMaskIntoConstraints = false
+        return sv
+    }()
+
+
+    // MARK: - Initializers
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
-        setupNavigation()
-        setupTableView()
-        setupRefreshControl()
-
-        // Initial data fetch
-        queryItems(refreshing: true)
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        // Optional: Refresh data if needed when view appears,
-        // or rely on pull-to-refresh/initial load.
-        // queryItems() // Be cautious about triggering too many fetches
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
-    // --- Setup ---
+    // MARK: - UI Setup
     private func setupUI() {
-        view.backgroundColor = .systemBackground
-        view.addSubview(tableView)
+        contentView.addSubview(headerStackView)
+        contentView.addSubview(postImageView)
+        contentView.addSubview(footerStackView)
 
-        // Layout constraints for table view
+        let padding: CGFloat = 12.0
+
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            // Header (Username, Location)
+            headerStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: padding),
+            headerStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: padding),
+            headerStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -padding),
+
+            // Post Image
+            postImageView.topAnchor.constraint(equalTo: headerStackView.bottomAnchor, constant: padding / 2),
+            postImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor), // Image spans full width
+            postImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            // Aspect Ratio Constraint for the Image (e.g., 1:1 square)
+             postImageView.heightAnchor.constraint(equalTo: postImageView.widthAnchor, multiplier: 1.0), // Square image
+
+            // Footer (Caption, Date)
+             footerStackView.topAnchor.constraint(equalTo: postImageView.bottomAnchor, constant: padding),
+            footerStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: padding),
+            footerStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -padding),
+            footerStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -padding) // Pin to bottom
         ])
     }
 
-     private func setupNavigation() {
-        title = "Found Items" // Set navigation title
-        // Add (+) button to navigation bar
-        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(onAddTapped))
-        // Add Logout button
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Logout", style: .plain, target: self, action: #selector(onLogOutTapped))
+
+    // MARK: - Configuration (Keep Original Logic, Update UI Elements)
+    func configure(with post: Post) {
+         resetContent()
+
+         // --- User ---
+        usernameLabel.text = post.user?.username ?? "User" // Provide a default
+
+        // --- Image ---
+        if let imageFile = post.imageFile, let imageUrl = imageFile.url {
+            // Use AlamofireImage helper to download and cache image
+            imageDataRequest = AF.request(imageUrl).responseImage { [weak self] response in
+                guard let self = self else { return }
+                switch response.result {
+                case .success(let image):
+                    
+                     if self.usernameLabel.text == post.user?.username {
+                         self.postImageView.image = image
+                    }
+                case .failure(let error):
+                    if !(error.isExplicitlyCancelledError || error.isSessionTaskError) {
+                         print(" N Image download error: \(error.localizedDescription) for URL: \(imageUrl)")
+                        self.postImageView.image = UIImage(systemName: "photo") // Placeholder on error
+                    }
+                }
+            }
+        } else {
+            postImageView.image = UIImage(systemName: "photo")
+        }
+
+        //Captio
+        captionLabel.text = post.caption
+
+         // Date
+        if let date = post.createdAt {
+            dateLabel.text = DateFormatter.postFormatter.string(from: date)
+        }
+
+         // Location
+         configureLocation(for: post)
+
     }
 
-    private func setupTableView() {
-        tableView.delegate = self
-        tableView.dataSource = self
-        tableView.rowHeight = UITableView.automaticDimension // Use auto-layout height
-        tableView.estimatedRowHeight = 400 // Provide estimate for performance
-        tableView.allowsSelection = true // Enable selection for detail view
-    }
-
-     private func setupRefreshControl() {
-        refreshControl.addTarget(self, action: #selector(handleRefresh(_:)), for: .valueChanged)
-        tableView.refreshControl = refreshControl
-    }
-
-    // --- Data Fetching ---
-    private func queryItems(refreshing: Bool = false, skip: Int = 0) {
-        print("Querying items... Refreshing: \(refreshing), Skip: \(skip)")
-
-        // Prevent multiple simultaneous loads
-        guard !isLoadingMore else {
-            print("⚠️ Already loading more items. Aborting query.")
-            if refreshing { refreshControl.endRefreshing() } // Stop spinner if it was a refresh
+    private func configureLocation(for post: Post) {
+        guard let geoPoint = post.location else {
+            locationLabel.isHidden = true // Hide if no location
             return
         }
 
-        // Construct the query for FoundItem
-        let query = FoundItem.query()
-            .include("user") // Include the user data
-            .order([.descending("createdAt")]) // Order by newest first
-            .limit(self.queryLimit) // Limit the number of results
-            .skip(skip) // Skip results for pagination
+        locationLabel.isHidden = false
+        locationLabel.text = "Loading location..."
 
-        // Indicate loading state
-        isLoadingMore = true // Mark as loading
-        if refreshing {
-             print("Starting refresh control animation")
-            refreshControl.beginRefreshing()
-        } else if skip > 0 {
-             print("Showing loading indicator for pagination (conceptual)")
-            // Optionally, show a loading indicator at the bottom (e.g., table view footer)
-        }
+        let location = CLLocation(latitude: geoPoint.latitude, longitude: geoPoint.longitude)
 
-        // Find items asynchronously
-        query.find { [weak self] result in
+        geocoder.reverseGeocodeLocation(location) { [weak self] (placemarks, error) in
             guard let self = self else { return }
 
-            // Perform UI updates on main thread
+             guard self.usernameLabel.text == post.user?.username else { return }
+
             DispatchQueue.main.async {
-                 print("Query finished. Updating UI.")
-                // Stop loading indicators
-                self.refreshControl.endRefreshing()
-                self.isLoadingMore = false // Mark as done loading THIS batch
+                if let error = error {
+                     print(" N Reverse geocode failed: \(error.localizedDescription)")
+                    self.locationLabel.text = "Unknown Location"
+                    return
+                }
 
-                // Hide footer loading indicator if used
-
-                switch result {
-                case .success(let fetchedItems):
-                    if refreshing {
-                        // If refreshing, replace existing items
-                        self.items = fetchedItems
-                        print("✅ Refreshed \(fetchedItems.count) items.")
-                    } else {
-                        // If loading more, append to existing items
-                        self.items.append(contentsOf: fetchedItems)
-                        print("✅ Loaded \(fetchedItems.count) more items. Total: \(self.items.count)")
+                if let placemark = placemarks?.first {
+                    var locationString = ""
+                    if let city = placemark.locality { locationString += city }
+                    if let state = placemark.administrativeArea {
+                        if !locationString.isEmpty { locationString += ", " }
+                        locationString += state
                     }
-
-                    // If fewer items than the limit were returned, we've likely reached the end
-                     if fetchedItems.count < self.queryLimit {
-                        print("ℹ️ Reached end of items or fetched less than limit.")
-                        // Optionally disable further loading attempts, though setting isLoadingMore=true
-                        // when fetchedItems.count is 0 might be enough
-                         self.isLoadingMore = true // Consider setting this to true only if fetchedItems.count == 0
-                    } else {
-                         self.isLoadingMore = false // Ready to load more if needed
-                     }
-
-
-                case .failure(let error):
-                    self.showAlert(description: "Error fetching items: \(error.localizedDescription)")
-                    print("❌ Error fetching items: \(error)")
-                     // Ensure loading flag is reset on error to allow retries
-                     self.isLoadingMore = false
+                    if locationString.isEmpty, let name = placemark.name {
+                         locationString = name
+                    } else if locationString.isEmpty {
+                        locationString = "Location Available"
+                    }
+                    self.locationLabel.text = locationString
+                } else {
+                    self.locationLabel.text = "Location details not found"
                 }
             }
         }
     }
 
-    // --- Actions ---
-     @objc private func onAddTapped() {
-        print("Add button tapped")
-        let foundItemVC = FoundItemViewController()
-        // You might want to wrap this in a navigation controller if it needs its own bar
-        let navController = UINavigationController(rootViewController: foundItemVC)
-        present(navController, animated: true, completion: nil) // Present modally
+    // MARK: - Reuse Preparation
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        resetContent()
     }
 
-    @objc private func handleRefresh(_ sender: UIRefreshControl) {
-        print("Pull to refresh triggered")
-        queryItems(refreshing: true, skip: 0) // Fetch the latest items, replacing current ones
-    }
-
-    @objc private func onLogOutTapped() {
-        print("Logout button tapped")
-        showConfirmLogoutAlert()
-    }
-
-    // --- Alerts (Keep As Is) ---
-    private func showConfirmLogoutAlert() {
-         DispatchQueue.main.async {
-            let alertController = UIAlertController(title: "Log out of your account?", message: nil, preferredStyle: .alert)
-            let logOutAction = UIAlertAction(title: "Log out", style: .destructive) { _ in
-                NotificationCenter.default.post(name: Notification.Name("logout"), object: nil)
-            }
-            let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
-            alertController.addAction(logOutAction)
-            alertController.addAction(cancelAction)
-            self.present(alertController, animated: true)
-         }
-    }
-
-    private func showAlert(title: String = "Oops...", description: String? = nil) {
-         DispatchQueue.main.async {
-            let alertController = UIAlertController(title: title, message: "\(description ?? "Please try again...")", preferredStyle: .alert)
-            let action = UIAlertAction(title: "OK", style: .default)
-            alertController.addAction(action)
-            self.present(alertController, animated: true)
-         }
-    }
-}
-
-// MARK: - UITableViewDataSource
-extension ItemListViewController: UITableViewDataSource {
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return items.count
-    }
-
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: FoundItemCell.identifier, for: indexPath) as? FoundItemCell else {
-            print("Error: Could not dequeue FoundItemCell")
-            return UITableViewCell() // Should not happen if registered correctly
-        }
-        cell.configure(with: items[indexPath.row])
-        return cell
-    }
-}
-
-// MARK: - UITableViewDelegate
-extension ItemListViewController: UITableViewDelegate {
-    // Infinite Scrolling Trigger
-    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-        // Check if the second to last row is about to be displayed and if we are not already loading
-        // (Trigger slightly before the absolute end for smoother loading)
-        let triggerIndex = items.count - 2
-        if indexPath.row >= triggerIndex && indexPath.row > 0 && !isLoadingMore && items.count >= queryLimit { // Ensure not loading and there might be more
-            print("🏁 Reached near bottom (row \(indexPath.row)/\(items.count-1)), attempting to load more...")
-            let nextSkip = items.count
-            queryItems(refreshing: false, skip: nextSkip)
-        }
-    }
-
-     // Handle Row Selection - Navigate to Detail View
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print("Did select row \(indexPath.row)")
-        tableView.deselectRow(at: indexPath, animated: true) // Deselect visually
-
-        let selectedItem = items[indexPath.row]
-        let detailVC = ItemDetailViewController()
-        detailVC.foundItem = selectedItem // Pass the selected item data
-
-        // Push the detail view controller onto the navigation stack
-        navigationController?.pushViewController(detailVC, animated: true)
+    private func resetContent() {
+        usernameLabel.text = nil
+        locationLabel.text = nil
+        locationLabel.isHidden = true
+        captionLabel.text = nil
+        dateLabel.text = nil
+        postImageView.image = nil
+        postImageView.backgroundColor = .secondarySystemBackground
+        imageDataRequest?.cancel()
+        imageDataRequest = nil
+        geocoder.cancelGeocode()
     }
 }
