@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ParseSwift
 
 struct PostView: View {
     
@@ -13,14 +14,14 @@ struct PostView: View {
     @State private var location = ""
     @State private var selectedImage: UIImage?
     @State private var showImagePicker = false
+    @State private var isSaving = false
     @Environment(\.dismiss) private var dismiss
 
     var onSubmit: (Post) -> Void
 
     var body: some View {
         
-        VStack(spacing: 16) {
-            
+        VStack(spacing: 10) {
             
             Button("Add Photo") {
                 showImagePicker = true
@@ -37,10 +38,7 @@ struct PostView: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
 
             Button("Post") {
-                guard let selectedImage else { return }
-                let post = Post(name: name, location: location, image: selectedImage)
-                onSubmit(post)
-                dismiss()
+                savePost()
             }
             .disabled(selectedImage == nil || name.isEmpty || location.isEmpty)
             .padding()
@@ -64,15 +62,58 @@ struct PostView: View {
             ImagePicker(image: $selectedImage)
         }
     }
-}
-
-
-
-#Preview {
-    NavigationView {
-        PostView(onSubmit: { post in
-            print("Post created: \(post.name) at \(post.location)")
-        })
+    
+    private func savePost() {
+        guard let selectedImage = selectedImage,
+              let imageData = selectedImage.jpegData(compressionQuality: 0.1),
+              let currentUser = User.current else{
+            print("Missing requared data")
+            return
+        }
+        
+        isSaving = true
+        
+        let photFile = ParseFile(name: "Photo.jpg", data: imageData)
+        
+        
+        
+        photFile.save() { result in
+            switch result {
+            case .success(let savedFile):
+                var post = Post()
+                post.caption = name
+                post.user = currentUser
+                post.imageFile = savedFile
+                
+                // Set ACL to allow others to read the post and see the user
+                var acl = ParseACL()
+                acl.publicRead = true
+                post.ACL = acl
+                
+                post.user?.ACL = acl
+                
+                post.save { result in
+                    DispatchQueue.main.async {
+                        isSaving = false
+                        switch result {
+                        case .success(let savedPost):
+                            print("Post saved: \(savedPost)")
+                            //onSubmit(savedPost)
+                            dismiss()
+                        case .failure(let error):
+                            print("Error saving post: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    isSaving = false
+                    print("Error saving image: \(error.localizedDescription)")
+                }
+            }
+        }
+                
+              
     }
+    
 }
-

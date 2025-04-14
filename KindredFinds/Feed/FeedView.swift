@@ -6,26 +6,26 @@
 //
 
 import SwiftUI
+import ParseSwift
 
 struct FeedView: View {
     @State private var posts: [Post] = []
     @State private var navigateToNewPost = false
-    
-    init(posts: [Post] = []) {
-        _posts = State(initialValue: posts)
-    }
-    
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 16) {
-                    ForEach(posts) { post in
-                        PostCellView(name: post.name, location: post.location, imageName: post.image)
+                    ForEach(posts, id: \.objectId) { post in
+                        PostCellView(
+                            name: post.caption ?? "Untitled",
+                            location: post.user?.username ?? "Unknownnnn",
+                            imageURL: post.imageFile?.url
+                        ).padding(.horizontal, 0.5)
                     }
                 }
-                .padding()
             }
-            .navigationTitle("Fed")
+            .navigationTitle("Feed")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(destination: PostView(onSubmit: { newPost in
@@ -35,18 +35,41 @@ struct FeedView: View {
                     }
                 }
             }
+            .onAppear(){
+                fetchPosts()
+            }
+            .refreshable {
+                fetchPosts()
+            }
         }
     }
+
+    private func fetchPosts() {
+        
+        let query = Post.query()
+            .include("user")
+            .order([.descending("createdAt")])
+
+        query.find { result in
+            switch result {
+            case .success(let retrievedPosts):
+                posts = retrievedPosts
+                
+                
+            case .failure(let error):
+                print("Error fetching posts: \(error.localizedDescription)")
+            }
+        }
+    
+    }
+    
 }
+
 
 
 #Preview {
-    FeedView(posts: [
-        Post(name: "Golden Hour", location: "Key Biscayne", image: UIImage(systemName: "sun.max.fill")!),
-        Post(name: "Evening Stroll", location: "South Beach", image: UIImage(systemName: "cloud.sun.fill")!)
-    ])
+    FeedView()
 }
-
 
 
 
