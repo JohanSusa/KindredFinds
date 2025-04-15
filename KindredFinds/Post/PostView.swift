@@ -75,6 +75,8 @@ struct PostView: View {
         
         let photFile = ParseFile(name: "Photo.jpg", data: imageData)
         
+        
+        
         photFile.save() { result in
             switch result {
             case .success(let savedFile):
@@ -83,12 +85,20 @@ struct PostView: View {
                 post.user = currentUser
                 post.imageFile = savedFile
                 
+                // Set ACL to allow others to read the post and see the user
+                var acl = ParseACL()
+                acl.publicRead = true
+                post.ACL = acl
+                
+                post.user?.ACL = acl
+                
                 post.save { result in
                     DispatchQueue.main.async {
                         isSaving = false
                         switch result {
                         case .success(let savedPost):
                             print("Post saved: \(savedPost)")
+                            //onSubmit(savedPost)
                             dismiss()
                         case .failure(let error):
                             print("Error saving post: \(error.localizedDescription)")

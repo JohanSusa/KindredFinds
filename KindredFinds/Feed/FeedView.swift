@@ -13,15 +13,15 @@ struct FeedView: View {
     @State private var navigateToNewPost = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     ForEach(posts, id: \.objectId) { post in
                         PostCellView(
                             name: post.caption ?? "Untitled",
-                            location: post.user?.username ?? "Unknown",
+                            location: post.user?.username ?? "Unknownnnn",
                             imageURL: post.imageFile?.url
-                        ).padding(.horizontal)
+                        ).padding(.horizontal, 0.5)
                     }
                 }
             }
@@ -35,13 +35,17 @@ struct FeedView: View {
                     }
                 }
             }
-            .onAppear {
+            .onAppear(){
+                fetchPosts()
+            }
+            .refreshable {
                 fetchPosts()
             }
         }
     }
 
     private func fetchPosts() {
+        
         let query = Post.query()
             .include("user")
             .order([.descending("createdAt")])
@@ -50,10 +54,13 @@ struct FeedView: View {
             switch result {
             case .success(let retrievedPosts):
                 posts = retrievedPosts
+                
+                
             case .failure(let error):
                 print("Error fetching posts: \(error.localizedDescription)")
             }
         }
+    
     }
     
 }

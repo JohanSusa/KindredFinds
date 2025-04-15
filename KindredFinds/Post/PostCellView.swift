@@ -27,31 +27,28 @@ struct PostCellView: View {
             
             // Image from URL using AsyncImage
             
-            if let imageURL = imageURL {
-                AsyncImage(url: imageURL) { phase in
+            
+            // Image
+            if let url = imageURL {
+                AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
                         ProgressView()
-                            .frame(height: 350)
-                            .frame(maxWidth: .infinity)
                     case .success(let image):
                         image
                             .resizable()
                             .scaledToFill()
-                            .frame(height: 350)
-                            .clipped()
                     case .failure:
                         Image(systemName: "photo")
                             .resizable()
                             .scaledToFit()
-                            .frame(height: 350)
-                            .foregroundColor(.gray)
                     @unknown default:
                         EmptyView()
                     }
                 }
+                .frame(minHeight: 250, maxHeight: 250)
+                .clipped()
             }
-
 
         }
     }

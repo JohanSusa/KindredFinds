@@ -101,6 +101,11 @@ struct SignUpView: View {
         newUser.username = email
         newUser.password = password
         newUser.email = email
+        
+        var acl = ParseACL()
+        acl.publicRead = true
+        newUser.ACL = acl
+
 
         Task {
             // check for a loged in user
