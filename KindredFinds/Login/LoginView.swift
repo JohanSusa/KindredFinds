@@ -22,9 +22,12 @@ struct LoginView: View {
         NavigationView {
             VStack(spacing: 20) {
                 
-                NavigationLink(destination: ContentView(), isActive: $userLogedIn){
+                NavigationLink(destination: MainTabView(), isActive: $userLogedIn){
                     EmptyView()
                 }
+                .navigationBarBackButtonHidden(true)
+
+
                 
                 Text("KindredFinds")
                     .font(.title)
@@ -73,7 +76,7 @@ struct LoginView: View {
                 
                 Spacer()
             }
-            .navigationBarHidden(true)
+            .navigationBarBackButtonHidden(true)
         }.alert("Error", isPresented: $showAlert, actions: {
             Button("OK", role: .cancel) {}
         }, message: {

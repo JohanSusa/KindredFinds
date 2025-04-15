@@ -7,14 +7,18 @@
 
 import SwiftUI
 import ParseSwift
+import CoreLocation
+
 
 struct PostView: View {
     
     @State private var name = ""
-    @State private var location = ""
+    @State private var description: String = ""
     @State private var selectedImage: UIImage?
     @State private var showImagePicker = false
     @State private var isSaving = false
+    @State private var imageLocation: CLLocation?
+
     @Environment(\.dismiss) private var dismiss
 
     var onSubmit: (Post) -> Void
@@ -31,16 +35,16 @@ struct PostView: View {
             .foregroundColor(.white)
             .cornerRadius(8)
 
-            TextField("Name of the Picture", text: $name)
+            TextField("Name of the Item found", text: $name)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
 
-            TextField("Location", text: $location)
+            TextField("Item Description", text: $description)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
 
             Button("Post") {
                 savePost()
             }
-            .disabled(selectedImage == nil || name.isEmpty || location.isEmpty)
+            .disabled(selectedImage == nil || name.isEmpty || description.isEmpty)
             .padding()
             .background(Color.green)
             .foregroundColor(.white)
@@ -59,52 +63,79 @@ struct PostView: View {
         .padding()
         .navigationTitle("New Post")
         .sheet(isPresented: $showImagePicker) {
-            ImagePicker(image: $selectedImage)
+            ImagePicker(image: $selectedImage, location: $imageLocation)
         }
     }
     
     private func savePost() {
         guard let selectedImage = selectedImage,
               let imageData = selectedImage.jpegData(compressionQuality: 0.1),
-              let currentUser = User.current else{
-            print("Missing requared data")
+              let currentUser = User.current else {
+            print("Missing required data")
             return
         }
-        
+
         isSaving = true
-        
-        let photFile = ParseFile(name: "Photo.jpg", data: imageData)
-        
-        
-        
-        photFile.save() { result in
+        let photoFile = ParseFile(name: "Photo.jpg", data: imageData)
+
+        photoFile.save { result in
             switch result {
             case .success(let savedFile):
                 var post = Post()
                 post.caption = name
                 post.user = currentUser
                 post.imageFile = savedFile
-                
-                // Set ACL to allow others to read the post and see the user
+                post.itemDescription = description
+
                 var acl = ParseACL()
                 acl.publicRead = true
                 post.ACL = acl
-                
                 post.user?.ACL = acl
-                
-                post.save { result in
-                    DispatchQueue.main.async {
+
+                // Location-based save
+                if let loc = imageLocation {
+                    do {
+                        post.geoPoint = try ParseGeoPoint(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude)
+                        print("📍 Saving post with location: \(loc.coordinate.latitude), \(loc.coordinate.longitude)")
+
+                        fetchAddress(for: loc) { addressString in
+                            post.address = addressString
+
+                            post.save { result in
+                                DispatchQueue.main.async {
+                                    isSaving = false
+                                    switch result {
+                                    case .success(_):
+                                        print("Post saved with address: \(addressString)")
+                                        dismiss()
+                                    case .failure(let error):
+                                        print("Error saving post: \(error.localizedDescription)")
+                                    }
+                                }
+                            }
+                        }
+
+                    } catch {
+                        print("Error creating ParseGeoPoint: \(error.localizedDescription)")
                         isSaving = false
-                        switch result {
-                        case .success(let savedPost):
-                            print("Post saved: \(savedPost)")
-                            //onSubmit(savedPost)
-                            dismiss()
-                        case .failure(let error):
-                            print("Error saving post: \(error.localizedDescription)")
+                    }
+
+                } else {
+                    // No location — save immediately
+                    post.save { result in
+                        DispatchQueue.main.async {
+                            isSaving = false
+                            switch result {
+                            case .success(_):
+                                print("Post saved without location")
+                                dismiss()
+                            case .failure(let error):
+                                print("Error saving post: \(error.localizedDescription)")
+                            }
                         }
                     }
                 }
+
             case .failure(let error):
                 DispatchQueue.main.async {
                     isSaving = false
@@ -112,8 +143,20 @@ struct PostView: View {
                 }
             }
         }
-                
-              
     }
+
+    
+    func fetchAddress(for location: CLLocation, completion: @escaping (String) -> Void) {
+        CLGeocoder().reverseGeocodeLocation(location) { placemarks, error in
+            if let placemark = placemarks?.first {
+                let parts = [placemark.name, placemark.locality, placemark.administrativeArea]
+                let fullAddress = parts.compactMap { $0 }.joined(separator: ", ")
+                completion(fullAddress)
+            } else {
+                completion("Unknown location")
+            }
+        }
+    }
+
     
 }
