@@ -2,9 +2,9 @@
 //  ContentView.swift
 //  KindredFinds
 //
-//  Created by NATANAEL  MEDINA  on 4/12/25.
+//  Created by NATANAEL  MEDINA & Johan Susa
 //
-
+/*
 import SwiftUI
 
 struct ContentView: View {
@@ -16,3 +16,4 @@ struct ContentView: View {
 #Preview {
     ContentView()
 }
+*/

@@ -2,137 +2,136 @@
 //  LoginView.swift
 //  KindredFinds
 //
-//  Created by NATANAEL  MEDINA  on 4/12/25.
+//  Created by NATANAEL  MEDINA & Johan Susa
 //
-
 import SwiftUI
+import ParseSwift
 
 struct LoginView: View {
-    // State variables to hold email and password text.
-    @State private var username: String = ""
+    @Binding var isLoggedIn: Bool //binding from ContentView
+
     @State private var email: String = ""
     @State private var password: String = ""
-    
+    @State private var isLoggingIn: Bool = false
     @State private var showAlert: Bool = false
     @State private var errorMessage: String = ""
-    @State private var userLogedIn: Bool = false
-    
+
     var body: some View {
-        // NavigationView allows us to use NavigationLink for the sign up button.
-        NavigationView {
+        // Use NavigationStack for modern navigation
+        NavigationStack {
             VStack(spacing: 20) {
-                
-                NavigationLink(destination: MainTabView(), isActive: $userLogedIn){
-                    EmptyView()
-                }
-                .navigationBarBackButtonHidden(true)
+                Spacer()
 
-
-                
+                // App Title/Logo Placeholder
                 Text("KindredFinds")
-                    .font(.title)
-                    .padding(.top, 60)
-                // welcomw Text
-                Text("Welcome!")
+                    .font(.largeTitle)
                     .fontWeight(.bold)
-                    .padding()
-                
+                    .padding(.bottom, 30)
+
+                Text("Welcome Back!")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+
                 // Email Input Field
                 TextField("Email", text: $email)
                     .keyboardType(.emailAddress)
-                    .autocapitalization(.none) // Disable auto-capitalization for email
+                    .textContentType(.emailAddress)
+                    .autocapitalization(.none)
                     .padding()
                     .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                    .padding(.horizontal, 24)
-                
-                // Password Input Field using SecureField for privacy
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+
+
+                // Password Input Field
                 SecureField("Password", text: $password)
+                    .textContentType(.password)
                     .padding()
                     .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                    .padding(.horizontal, 24)
-                
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+
+
                 // Log In Button
-                Button(action: {
-                    logInUser()
-                }) {
-                    Text("Log In")
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .cornerRadius(8)
-                        .padding(.horizontal, 24)
+                Button(action: logInUser) {
+                    HStack {
+                        if isLoggingIn {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Text("Log In")
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(isLoggingIn ? Color.blue.opacity(0.6) : Color.blue)
+                    .cornerRadius(10)
+                    .shadow(color: .blue.opacity(0.3), radius: 5, y: 3)
                 }
-                
+                .disabled(email.isEmpty || password.isEmpty || isLoggingIn)
+                .padding(.top)
+
+
                 // Sign Up Navigation Link
-                NavigationLink(destination: SignUpView()) {
-                    Text("Don't have an account? Sign Up")
-                        .foregroundColor(.blue)
-                        .underline()
+                NavigationLink {
+                     SignUpView(isSignedUp: $isLoggedIn)
+                } label: {
+                    HStack(spacing: 4) {
+                         Text("Don't have an account?")
+                         Text("Sign Up")
+                             .fontWeight(.semibold)
+                             .foregroundColor(.blue)
+                    }
+                    .font(.footnote)
+                    .foregroundColor(.gray)
                 }
                 .padding(.top, 10)
-                
+
+                Spacer()
                 Spacer()
             }
-            .navigationBarBackButtonHidden(true)
-        }.alert("Error", isPresented: $showAlert, actions: {
-            Button("OK", role: .cancel) {}
-        }, message: {
-            Text(errorMessage)
-        })
+            .padding(.horizontal, 24)
+            .alert("Login Error", isPresented: $showAlert, actions: {
+                Button("OK", role: .cancel) {}
+            }, message: {
+                Text(errorMessage)
+            })
+        }
     }
-    
+
     private func logInUser() {
-        
-        // Make sure all fields are non-nil and non-empty.
         guard !email.isEmpty, !password.isEmpty else {
-            showError(message: "All fields are required. Please fill in every field.")
-            print("All fields are required. Please fill in every field.")
+            showError(message: "Please enter both email and password.")
             return
         }
 
+        isLoggingIn = true
 
         Task {
-            // check for a loged in user
-            if User.current != nil {
-                do {
-                    try await User.logout()
-                } catch {
-                    // Handle logout error if needed.
-                    print("Logout failed: \(error.localizedDescription)")
-    
-                }
-            }
             do {
-                try await User.login(username: email, password: password)
-                print("login successfull")
-                userLogedIn = true
-            } catch{
-                errorMessage = error.localizedDescription
-                showError(message: errorMessage)
-                showAlert = true
-                print("login failed: \(error.localizedDescription)")
-
+                let loggedInUser = try await User.login(username: email, password: password)
+                print("✅ Login successful for user: \(loggedInUser.username ?? "N/A")")
+                isLoggedIn = true
+                isLoggingIn = false
+            } catch {
+                print("❌ Login failed: \(error.localizedDescription)")
+                showError(message: "Login failed: \(error.localizedDescription)") 
+                isLoggingIn = false
             }
-           
-            
         }
-        
     }
-    
+
     private func showError(message: String) {
         errorMessage = message
         showAlert = true
     }
-    
 }
 
-// Preview for SwiftUI canvas
+// Preview requires providing a binding
 struct LoginView_Previews: PreviewProvider {
     static var previews: some View {
-        LoginView()
+        LoginView(isLoggedIn: .constant(false))
     }
 }
-

@@ -2,11 +2,9 @@
 //  PostCellView.swift
 //  KindredFinds
 //
-//  Created by NATANAEL  MEDINA  on 4/13/25.
+//  Created by NATANAEL  MEDINA & Johan Susa
 //
-
 import SwiftUI
-import CoreLocation
 
 struct PostCellView: View {
     let name: String
@@ -14,49 +12,81 @@ struct PostCellView: View {
     let imageURL: URL?
 
     var body: some View {
-        VStack(alignment: .leading) {
-            // Name of the picture
-            Text(name)
-                .font(.headline)
-                .padding(.horizontal, 5)
+        VStack(alignment: .leading, spacing: 0) { // No spacing needed if image fills width
 
-            // Location (user or actual location string)
-            Text(location)
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .padding(.horizontal, 5)
-            
-            // Image from URL using AsyncImage
-            // Image
-            if let url = imageURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
+            // Image Section
+            AsyncImage(url: imageURL) { phase in
+                switch phase {
+                case .empty:
+                    ZStack { // Use ZStack for placeholder content
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 250)
                         ProgressView()
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        Image(systemName: "photo")
+                    }
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 250)
+                        .clipped()
+                case .failure:
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 250)
+                        Image(systemName: "photo.fill")
                             .resizable()
                             .scaledToFit()
-                    @unknown default:
-                        EmptyView()
+                            .frame(width: 50, height: 50)
+                            .foregroundColor(.gray)
                     }
+                @unknown default:
+                    EmptyView()
                 }
-                .frame(minHeight: 250, maxHeight: 250)
-                .clipped()
             }
 
+            // Text Content Section
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                HStack(alignment: .firstTextBaseline) {
+                    Image(systemName: "location.fill")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(location)
+                        .font(.subheadline) // Consistent size
+                        .foregroundColor(.secondary) // Use secondary color for less emphasis
+                        .lineLimit(1)
+                }
+            }
+            .padding([.horizontal, .bottom], 12)
+            .padding(.top, 8)
+
         }
+        // Card Styling
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .overlay(
+             RoundedRectangle(cornerRadius: 12)
+                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+
     }
 }
 
-#Preview {
-    PostCellView(
-        name: "Golden Hour",
-        location: "Key Biscayne",
-        imageURL: URL(string: "https://via.placeholder.com/400x200.png?text=Sample+Image")
-    )
+// Preview
+struct PostCellView_Previews: PreviewProvider {
+    static var previews: some View {
+        PostCellView(
+            name: "Found Keys Near Park",
+            location: "Central Park, Near South Entrance",
+            imageURL: URL(string: "https://via.placeholder.com/600x400.png?text=Sample+Item")
+        )
+        .padding()
+        .previewLayout(.sizeThatFits)
+    }
 }
