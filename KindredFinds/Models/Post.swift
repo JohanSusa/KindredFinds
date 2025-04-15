@@ -17,15 +17,11 @@ struct Post: ParseObject {
     var originalData: Data?
 
     // Your own custom properties.
+    var address: String?
     var caption: String?
+    var itemDescription: String?
     var user: User?
     var imageFile: ParseFile?
+    var geoPoint: ParseGeoPoint?
+    
 }
-
-
-//struct Post: Identifiable {
-//    let id = UUID()
-//    let name: String
-//    let location: String
-//    let image: UIImage
-//}

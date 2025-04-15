@@ -17,11 +17,14 @@ struct FeedView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     ForEach(posts, id: \.objectId) { post in
-                        PostCellView(
-                            name: post.caption ?? "Untitled",
-                            location: post.user?.username ?? "Unknownnnn",
-                            imageURL: post.imageFile?.url
-                        ).padding(.horizontal, 0.5)
+                        NavigationLink(destination: PostDetailView(post: post)) {
+                            PostCellView(
+                                name: post.caption ?? "Untitled",
+                                location: post.address ?? "no location assinged",
+                                imageURL: post.imageFile?.url
+                            )
+                            .padding(.horizontal, 0.5)
+                        }
                     }
                 }
             }

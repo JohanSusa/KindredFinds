@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 struct PostCellView: View {
     let name: String
@@ -26,8 +27,6 @@ struct PostCellView: View {
                 .padding(.horizontal, 5)
             
             // Image from URL using AsyncImage
-            
-            
             // Image
             if let url = imageURL {
                 AsyncImage(url: url) { phase in
@@ -61,4 +60,3 @@ struct PostCellView: View {
         imageURL: URL(string: "https://via.placeholder.com/400x200.png?text=Sample+Image")
     )
 }
-//https://via.placeholder.com/400x200.png?text=Sample+Image
