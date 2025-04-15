@@ -27,7 +27,7 @@ struct SignUpView: View {
             
             VStack {
                 // Hidden NavigationLink
-                NavigationLink(destination: ContentView(), isActive: $userSingedUp) {
+                NavigationLink(destination: FeedView(), isActive: $userSingedUp) {
                     EmptyView()
                 }
                 

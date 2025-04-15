@@ -22,7 +22,7 @@ struct LoginView: View {
         NavigationView {
             VStack(spacing: 20) {
                 
-                NavigationLink(destination: ContentView(), isActive: $userLogedIn){
+                NavigationLink(destination: FeedView(), isActive: $userLogedIn){
                     EmptyView()
                 }
                 
