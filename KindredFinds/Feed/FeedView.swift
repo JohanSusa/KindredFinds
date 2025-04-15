@@ -28,16 +28,6 @@ struct FeedView: View {
                     }
                 }
             }
-            .navigationTitle("Feed")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: PostView(onSubmit: { newPost in
-                        posts.insert(newPost, at: 0)
-                    })) {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
             .onAppear(){
                 fetchPosts()
             }
@@ -45,6 +35,7 @@ struct FeedView: View {
                 fetchPosts()
             }
         }
+        .navigationBarBackButtonHidden(true)
     }
 
     private func fetchPosts() {

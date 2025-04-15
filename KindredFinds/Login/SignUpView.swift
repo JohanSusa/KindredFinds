@@ -27,7 +27,7 @@ struct SignUpView: View {
             
             VStack {
                 // Hidden NavigationLink
-                NavigationLink(destination: FeedView(), isActive: $userSingedUp) {
+                NavigationLink(destination: MainTabView(), isActive: $userSingedUp) {
                     EmptyView()
                 }
                 
@@ -70,7 +70,7 @@ struct SignUpView: View {
                 
                 Spacer()
             }
-        } // Display an error alert
+        }         // Display an error alert
         .alert("Error", isPresented: $showAlert, actions: {
             Button("OK", role: .cancel) {}
         }, message: {
