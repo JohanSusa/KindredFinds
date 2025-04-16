@@ -8,23 +8,24 @@ KindredFinds is an iOS application designed to help people recover their lost be
 ## 1. User Stories 
 
 **Required Must-have Stories**
+[X][X]
 
-* User can post a new found item with an image.
-* User can specify the location of the found item (address or map).
-* User can add a comment with details about the found item.
-* User can view a list of found items.
-* User can view details of a found item (image, location, comments).
+[X] User can post a new found item with an image.
+[X] User can specify the location of the found item (address or map).
+[X] User can add a comment with details about the found item.
+[X]  User can view a list of found items.
+[X] User can view details of a found item (image, location, comments).
 
 
 **Optional Nice-to-have Stories**
 
-* User can create a user account.
+[X] User can create a user account.
 * User can search for found items by keywords.
 * User can filter found items by location or category.
 * User can receive notifications for found items in their area.
-* User can message the poster of a found item.
+[X] User can message the poster of a found item.
 * User can categorize the found item.
-* User can view a map of found items.
+[X] User can view a map of found items.
 
 ## 2. Screen Archetypes
 
