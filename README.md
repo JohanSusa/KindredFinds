@@ -8,7 +8,6 @@ KindredFinds is an iOS application designed to help people recover their lost be
 ## 1. User Stories 
 
 **Required Must-have Stories**
-[X][X]
 
 [X] User can post a new found item with an image.
 [X] User can specify the location of the found item (address or map).
